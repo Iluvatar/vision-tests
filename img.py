@@ -6,10 +6,8 @@ import sys
 import thread
 import collections
 
-
-# face_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml')
-# eye_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_eye.xml')
-
+# This program looks for a skinny green object int the camera view and uses it to define a line
+# on the screen. It also has a ball bouncing around that interacts with the line.
 
 
 # line = [x, y, dx, dy]
@@ -84,12 +82,6 @@ def display_frame():
 
 
 
-
-
-
-
-
-
 # Get command line arguments
 if len(sys.argv) <= 1:
     cameraNum = 0
@@ -136,44 +128,36 @@ while (cap.isOpened()):
     _, frame = cap.read()
 
 
+    ### INTERESTING VISION STUFF ###
 
-
-    # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-    # for (x,y,w,h) in faces:
-    #     cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
-    #     roi_gray = gray[y:y+h, x:x+w]
-    #     roi_color = frame[y:y+h, x:x+w]
-    #     eyes = eye_cascade.detectMultiScale(roi_gray)
-    #     # for (ex,ey,ew,eh) in eyes:
-    #     #     cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-
-
-
-
-    # frame = cv2.resize(frame_hd, (FRAME_WIDTH / SCALE, FRAME_HEIGHT / SCALE), interpolation=cv2.INTER_CUBIC)
-
+    # convert from RGB to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # lower_green = np.array([60, 60, 0])
-    # upper_green = np.array([90, 255, 255])
-
+    
+    # define HSV boundaries for the color we're looking for (neon green)
     lower_green = np.array([40, 40, 40])
     upper_green = np.array([70, 255, 255])
+    
+    # get  a mask of things in that range
     mask = cv2.inRange(hsv, lower_green, upper_green)
 
+    # blur to get rid of noise
     kernel = np.ones((3, 3), np.float32) / 9
     dst = cv2.filter2D(mask, -1, kernel)
 
+    # look for connected blobs
     _, contours, _ = cv2.findContours(dst, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
 
-
     if len(contours) > 0:
+        # sort blobs by size
         blobs = np.argsort(map(cv2.contourArea, contours))
 
+        # only continue if it finds a blob large enough
         if cv2.contourArea(contours[blobs[-1]]) > 100:
+            # fit a line to the blob...
             [dx, dy, x, y] = cv2.fitLine(contours[blobs[-1]], cv2.DIST_L2, 0, 0.01, 0.01)
 
+            #... and draw it
             drawLine(frame, [x, y, dx, dy], (255, 0, 0), 2)
             line = np.array([x, y, dx, dy], dtype=np.float)
             line = np.ndarray.flatten(line)
@@ -182,17 +166,11 @@ while (cap.isOpened()):
     else:
         line = np.array([0, FRAME_HEIGHT * 2, 1, 0], dtype=np.float)
 
-    
+    ### END INTERESTING VISION STUFF ###
 
-
-
-
-
+    # draw the ball
     cv2.circle(frame, tuple(map(int, tuple(ball_pos))), BALL_RADIUS, (0, 0, 255), -1)
     
-
-
-
     # Display  frame
     # frame = cv2.resize(frame, (FRAME_WIDTH / SCALE, FRAME_HEIGHT / SCALE), interpolation=cv2.INTER_CUBIC)
     # cv2.imshow("window", np.fliplr(frame))
@@ -200,16 +178,15 @@ while (cap.isOpened()):
 
     frame_buffer.append(frame)
 
-
-
+    
+    ### Ball physics stuff ###
+    
     # update ball pos and vel
     ball_pos += ball_vel
-
 
     testClip(np.array([[line[0], line[1]], [line[0] + line[2], line[1] + line[3]]]))
 
     oldBallPos = ball_pos
-
 
     if (ball_pos[0] - BALL_RADIUS < 0 or ball_pos[0] + BALL_RADIUS >= FRAME_WIDTH):
         ball_vel *= (-1, 1)
@@ -237,8 +214,6 @@ while (cap.isOpened()):
 
     ball_vel += ball_acc
 
-    # time.sleep(.02)
-
     
     # Quit on 'q' press
     press = cv2.waitKey(10);
@@ -262,13 +237,4 @@ while (cap.isOpened()):
 # Release everything
 cap.release()
 cv2.destroyAllWindows()
-
-
-
-
-
-
-
-
-
 
