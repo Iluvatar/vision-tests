@@ -154,13 +154,24 @@ while (cap.isOpened()):
 
         # only continue if it finds a blob large enough
         if cv2.contourArea(contours[blobs[-1]]) > 100:
-            # fit a line to the blob...
-            [dx, dy, x, y] = cv2.fitLine(contours[blobs[-1]], cv2.DIST_L2, 0, 0.01, 0.01)
+            # fit an ellipse to the blob and find its eccentricity
+            ellipse = cv2.fitEllipse(contours[blobs[-1]])
+            (center, axes, orientation) = ellipse
+            majoraxis_length = max(axes)
+            minoraxis_length = min(axes)
+            eccentricity = np.sqrt(1-(minoraxis_length/majoraxis_length)**2)
 
-            #... and draw it
-            drawLine(frame, [x, y, dx, dy], (255, 0, 0), 2)
-            line = np.array([x, y, dx, dy], dtype=np.float)
-            line = np.ndarray.flatten(line)
+            # filter on eccentricity so only long, skinny objects are considered
+            if eccentricity > .9:
+                # fit a line to the blob...
+                [dx, dy, x, y] = cv2.fitLine(contours[blobs[-1]], cv2.DIST_L2, 0, 0.01, 0.01)
+
+                # ...and draw it
+                drawLine(frame, [x, y, dx, dy], (51, 230, 18), 4)
+                line = np.array([x, y, dx, dy], dtype=np.float)
+                line = np.ndarray.flatten(line)
+            else:
+                line = np.array([0, FRAME_HEIGHT * 2, 1, 0], dtype=np.float)
         else:
             line = np.array([0, FRAME_HEIGHT * 2, 1, 0], dtype=np.float)
     else:
